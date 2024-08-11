@@ -20,6 +20,10 @@
 
 package com.sdrtouch.tools;
 
+import static android.app.PendingIntent.FLAG_ALLOW_UNSAFE_IMPLICIT_INTENT;
+import static android.app.PendingIntent.FLAG_MUTABLE;
+import static android.content.Context.RECEIVER_EXPORTED;
+
 import android.app.PendingIntent;
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -35,24 +39,27 @@ import java.util.concurrent.Future;
 public class UsbPermissionObtainer {
     private static final String ACTION_USB_PERMISSION = "com.android.example.USB_PERMISSION";
 
-    public static Future<UsbDeviceConnection> obtainFdFor(Context ctx, UsbDevice usbDevice) {
+    public static Future<UsbDeviceConnection> obtainFdFor(Context context, UsbDevice usbDevice) {
         int flags = 0;
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            flags = PendingIntent.FLAG_MUTABLE;
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            flags = FLAG_MUTABLE | FLAG_ALLOW_UNSAFE_IMPLICIT_INTENT;
+        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            flags = FLAG_MUTABLE;
         }
-        UsbManager manager = (UsbManager) ctx.getSystemService(Context.USB_SERVICE);
+        UsbManager manager = (UsbManager) context.getSystemService(Context.USB_SERVICE);
         if (!manager.hasPermission(usbDevice)) {
             AsyncFuture<UsbDeviceConnection> task = new AsyncFuture<>();
-            registerNewBroadcastReceiver(ctx, usbDevice, task);
-            manager.requestPermission(usbDevice, PendingIntent.getBroadcast(ctx, 0, new Intent(ACTION_USB_PERMISSION), flags));
+            registerNewBroadcastReceiver(context, usbDevice, task);
+            manager.requestPermission(usbDevice, PendingIntent.getBroadcast(context, 0, new Intent(ACTION_USB_PERMISSION), flags));
             return task;
         } else {
             return new CompletedFuture<>(manager.openDevice(usbDevice));
         }
     }
 
-    private static void registerNewBroadcastReceiver(final Context ctx, final UsbDevice usbDevice, final AsyncFuture<UsbDeviceConnection> task) {
-        ctx.registerReceiver(new BroadcastReceiver() {
+    private static void registerNewBroadcastReceiver(final Context context, final UsbDevice usbDevice, final AsyncFuture<UsbDeviceConnection> task) {
+        BroadcastReceiver broadcastReceiver = new BroadcastReceiver() {
             @Override
             public void onReceive(Context context, Intent intent) {
                 String action = intent.getAction();
@@ -62,9 +69,9 @@ public class UsbPermissionObtainer {
                             Log.appendLine("Permission already should be processed, ignoring.");
                             return;
                         }
-                        UsbManager manager = (UsbManager) ctx.getSystemService(Context.USB_SERVICE);
+                        UsbManager manager = (UsbManager) context.getSystemService(Context.USB_SERVICE);
                         UsbDevice device = intent.getParcelableExtra(UsbManager.EXTRA_DEVICE);
-                        if (device != null && device.equals(usbDevice)) {
+                        if (device.equals(usbDevice)) {
                             if (intent.getBooleanExtra(UsbManager.EXTRA_PERMISSION_GRANTED, false)) {
                                 if (!manager.hasPermission(device)) {
                                     Log.appendLine("Permissions were granted but can't access the device");
@@ -79,7 +86,7 @@ public class UsbPermissionObtainer {
                             }
                             context.unregisterReceiver(this);
                         } else {
-                            Log.appendLine("Got a permission for an unexpected device %s. Expected %s.", device == null ? "NULL" : device, usbDevice);
+                            Log.appendLine("Got a permission for an unexpected device");
                             task.setDone(null);
                         }
                     }
@@ -88,9 +95,13 @@ public class UsbPermissionObtainer {
                     task.setDone(null);
                 }
             }
-        }, new IntentFilter(ACTION_USB_PERMISSION));
+        };
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            context.registerReceiver(broadcastReceiver, new IntentFilter(ACTION_USB_PERMISSION), RECEIVER_EXPORTED);
+        } else {
+            context.registerReceiver(broadcastReceiver, new IntentFilter(ACTION_USB_PERMISSION));
+        }
     }
 
-    private UsbPermissionObtainer() {
-    }
+    private UsbPermissionObtainer() {}
 }

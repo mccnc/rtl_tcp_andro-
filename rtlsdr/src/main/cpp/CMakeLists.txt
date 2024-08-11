@@ -8,7 +8,7 @@ FILE ( GLOB_RECURSE SOURCES_LIB "src/*.c" )
 
 SET ( CMAKE_C_FLAGS         "-Wall" )
 SET ( CMAKE_C_FLAGS_DEBUG   "-g -DDEBUG")
-SET ( CMAKE_C_FLAGS_RELEASE "-O3 -DNDEBUG" )
+SET ( CMAKE_C_FLAGS_RELEASE "-O1 -DNDEBUG" ) # Keep optimization low to reduce random libusb crashes
 
 FIND_LIBRARY( LOG_LIB log )
 

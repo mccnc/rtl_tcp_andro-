@@ -26,6 +26,7 @@ import android.app.NotificationManager;
 import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.ServiceInfo;
 import android.os.Binder;
 import android.os.Build;
 import android.os.IBinder;
@@ -127,12 +128,16 @@ public class BinaryRunnerService extends Service {
 				.setOngoing(true)
                 .setContentTitle(getText(R.string.app_name));
 
-		if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.JELLY_BEAN) {
+		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN) {
             builder = builder
                     .setPriority(Notification.PRIORITY_MAX);
 		}
 
-		startForeground(ONGOING_NOTIFICATION_ID, builder.build());
+		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+			startForeground(ONGOING_NOTIFICATION_ID, builder.build(), ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK);
+		} else {
+			startForeground(ONGOING_NOTIFICATION_ID, builder.build());
+		}
 	}
 
 	private final OnStatusListener onStatusListener = new OnStatusListener() {
